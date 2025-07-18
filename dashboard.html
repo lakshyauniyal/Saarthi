@@ -1,0 +1,397 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Wallet Management Dashboard</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Firebase Compatibility SDK -->
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js"></script>
+</head>
+<body class="bg-gray-100 font-sans">
+    <div class="container mx-auto p-4 max-w-4xl">
+        <div class="flex justify-between items-center mb-6">
+            <h1 class="text-3xl font-bold text-gray-800">Wallet Management Dashboard</h1>
+            <button onclick="logout()" class="bg-red-500 text-white px-4 py-2 rounded-lg hover:bg-red-600">Logout</button>
+        </div>
+
+        <!-- Add Wallet Form -->
+        <div class="mb-6 bg-white p-4 rounded-lg shadow">
+            <h2 class="text-xl font-semibold mb-4">Add New Wallet</h2>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <input type="text" id="walletName" placeholder="Wallet Name" class="p-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
+                <input type="text" id="walletAddress" placeholder="Wallet Address" class="p-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
+                <input type="number" id="walletAmount" placeholder="Amount" step="0.01" class="p-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
+                <input type="date" id="activationDate" class="p-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
+            </div>
+            <button onclick="addWallet()" class="mt-4 bg-blue-500 text-white px-4 py-2 rounded-lg hover:bg-blue-600">Add Wallet</button>
+        </div>
+
+        <!-- Search and Filter -->
+        <div class="mb-6 bg-white p-4 rounded-lg shadow">
+            <h2 class="text-xl font-semibold mb-4">Search & Filter Wallets</h2>
+            <div class="flex flex-col md:flex-row gap-4">
+                <input type="text" id="searchInput" placeholder="Search by Name or Address" class="flex-1 p-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
+                <input type="date" id="retopupFilter" class="p-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
+                <button onclick="filterByRetopupToday()" class="bg-green-500 text-white px-4 py-2 rounded-lg hover:bg-green-600">Show Today's Retopup</button>
+            </div>
+        </div>
+
+        <!-- Summary for Today's Retopup -->
+        <div id="retopupSummary" class="mb-6 bg-white p-4 rounded-lg shadow hidden">
+            <h2 class="text-xl font-semibold mb-2">Today's Retopup Summary</h2>
+            <p><strong>Total Wallets:</strong> <span id="totalWallets">0</span></p>
+            <p><strong>Total Amount:</strong> $<span id="totalAmount">0.00</span></p>
+        </div>
+
+        <!-- Wallet List -->
+        <div class="bg-white p-4 rounded-lg shadow">
+            <h2 class="text-xl font-semibold mb-4">Wallet List</h2>
+            <ul id="walletList" class="space-y-2">
+                <!-- Wallets will be dynamically added here -->
+            </ul>
+        </div>
+    </div>
+
+    <!-- Edit Wallet Modal -->
+    <div id="editWalletModal" class="fixed inset-0 bg-gray-600 bg-opacity-50 hidden flex items-center justify-center">
+        <div class="bg-white p-6 rounded-lg shadow-lg w-full max-w-md">
+            <h2 class="text-xl font-semibold mb-4">Edit Wallet</h2>
+            <div class="grid grid-cols-1 gap-4">
+                <input type="text" id="editWalletName" placeholder="Wallet Name" class="p-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
+                <input type="text" id="editWalletAddress" placeholder="Wallet Address" class="p-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
+                <input type="number" id="editWalletAmount" placeholder="Amount" step="0.01" class="p-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
+                <input type="date" id="editActivationDate" class="p-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
+                <input type="date" id="editRetopupDate" class="p-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
+            </div>
+            <div class="flex gap-2 mt-4">
+                <button onclick="saveWalletEdit()" class="bg-blue-500 text-white px-4 py-2 rounded-lg hover:bg-blue-600">Save</button>
+                <button onclick="closeEditModal()" class="bg-gray-500 text-white px-4 py-2 rounded-lg hover:bg-gray-600">Cancel</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Edit Retopup Date Modal -->
+    <div id="editRetopupModal" class="fixed inset-0 bg-gray-600 bg-opacity-50 hidden flex items-center justify-center">
+        <div class="bg-white p-6 rounded-lg shadow-lg w-full max-w-sm">
+            <h2 class="text-xl font-semibold mb-4">Edit Retopup Date</h2>
+            <input type="date" id="editSingleRetopupDate" class="p-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 w-full">
+            <div class="flex gap-2 mt-4">
+                <button onclick="saveRetopupEdit()" class="bg-blue-500 text-white px-4 py-2 rounded-lg hover:bg-blue-600">Save</button>
+                <button onclick="closeRetopupModal()" class="bg-gray-500 text-white px-4 py-2 rounded-lg hover:bg-gray-600">Cancel</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Firebase Configuration
+        const firebaseConfig = {
+            apiKey: "AIzaSyCM-KaZAmaLc15SIdOREfH7qxJCYhctJSI",
+            authDomain: "saarthi-b3c5a.firebaseapp.com",
+            databaseURL: "https://saarthi-b3c5a-default-rtdb.firebaseio.com",
+            projectId: "saarthi-b3c5a",
+            storageBucket: "saarthi-b3c5a.firebasestorage.app",
+            messagingSenderId: "762666335555",
+            appId: "1:762666335555:web:4fb7684c6217f0e27e03f6"
+        };
+
+        // Initialize Firebase
+        try {
+            firebase.initializeApp(firebaseConfig);
+        } catch (error) {
+            console.error('Error initializing Firebase:', error);
+            alert('Failed to initialize Firebase. Please check your internet connection or Firebase configuration.');
+        }
+
+        const auth = firebase.auth();
+        const database = firebase.database();
+        let walletsRef = null;
+        let wallets = [];
+        let currentEditWalletId = null;
+        let currentRetopupWalletId = null;
+
+        // Check authentication state
+        auth.onAuthStateChanged((user) => {
+            if (user) {
+                walletsRef = database.ref(`wallets/${user.uid}`);
+                loadWallets();
+            } else {
+                window.location.href = 'index.html';
+            }
+        });
+
+        // Load wallets for the authenticated user
+        function loadWallets() {
+            walletsRef.on('value', (snapshot) => {
+                wallets = [];
+                const data = snapshot.val();
+                if (data) {
+                    Object.keys(data).forEach(key => {
+                        wallets.push({ id: key, ...data[key] });
+                    });
+                }
+                renderWallets();
+            }, (error) => {
+                console.error('Error loading wallets:', error);
+                alert('Failed to load wallets. Please check your Firebase configuration and database rules.');
+            });
+            setTodayDate();
+        }
+
+        // Logout function
+        function logout() {
+            auth.signOut().then(() => {
+                alert('Logged out successfully!');
+                window.location.href = 'login.html';
+            }).catch((error) => {
+                console.error('Error during logout:', error);
+                alert(`Logout failed: ${error.message}`);
+            });
+        }
+
+        // Set today's date in the retopup filter input
+        function setTodayDate() {
+            const today = new Date().toISOString().split('T')[0];
+            document.getElementById('retopupFilter').value = today;
+        }
+
+        // Add a new wallet
+        function addWallet() {
+            const name = document.getElementById('walletName').value.trim();
+            const address = document.getElementById('walletAddress').value.trim();
+            const amount = parseFloat(document.getElementById('walletAmount').value);
+            const activationDate = document.getElementById('activationDate').value;
+
+            if (!name || !address || isNaN(amount) || !activationDate) {
+                alert('Please fill in all fields!');
+                return;
+            }
+
+            const activationDateObj = new Date(activationDate);
+            const retopupDate = new Date(activationDateObj);
+            retopupDate.setDate(retopupDate.getDate() + 15);
+
+            const wallet = {
+                name,
+                address,
+                amount,
+                activationDate,
+                retopupDate: retopupDate.toISOString().split('T')[0]
+            };
+
+            // Push to Firebase under user’s UID
+            walletsRef.push(wallet, (error) => {
+                if (error) {
+                    console.error('Error adding wallet:', error);
+                    alert('Failed to add wallet. Please check your Firebase database rules.');
+                } else {
+                    console.log('Wallet added successfully');
+                    alert('Wallet added successfully!');
+                    clearForm();
+                }
+            });
+        }
+
+        // Clear form inputs
+        function clearForm() {
+            document.getElementById('walletName').value = '';
+            document.getElementById('walletAddress').value = '';
+            document.getElementById('walletAmount').value = '';
+            document.getElementById('activationDate').value = '';
+        }
+
+        // Open edit wallet modal
+        function openEditModal(id) {
+            const wallet = wallets.find(w => w.id === id);
+            if (!wallet) return;
+
+            currentEditWalletId = id;
+            document.getElementById('editWalletName').value = wallet.name;
+            document.getElementById('editWalletAddress').value = wallet.address;
+            document.getElementById('editWalletAmount').value = wallet.amount;
+            document.getElementById('editActivationDate').value = wallet.activationDate;
+            document.getElementById('editRetopupDate').value = wallet.retopupDate;
+            document.getElementById('editWalletModal').classList.remove('hidden');
+        }
+
+        // Close edit wallet modal
+        function closeEditModal() {
+            document.getElementById('editWalletModal').classList.add('hidden');
+            currentEditWalletId = null;
+        }
+
+        // Save wallet edit
+        function saveWalletEdit() {
+            if (!currentEditWalletId) return;
+
+            const name = document.getElementById('editWalletName').value.trim();
+            const address = document.getElementById('editWalletAddress').value.trim();
+            const amount = parseFloat(document.getElementById('editWalletAmount').value);
+            const activationDate = document.getElementById('editActivationDate').value;
+            const retopupDate = document.getElementById('editRetopupDate').value;
+
+            if (!name || !address || isNaN(amount) || !activationDate || !retopupDate) {
+                alert('Please fill in all fields!');
+                return;
+            }
+
+            walletsRef.child(currentEditWalletId).update({
+                name,
+                address,
+                amount,
+                activationDate,
+                retopupDate
+            }, (error) => {
+                if (error) {
+                    console.error('Error updating wallet:', error);
+                    alert('Failed to update wallet. Please check your Firebase database rules.');
+                } else {
+                    alert('Wallet updated successfully!');
+                    closeEditModal();
+                }
+            });
+        }
+
+        // Open edit retopup date modal
+        function openRetopupModal(id) {
+            const wallet = wallets.find(w => w.id === id);
+            if (!wallet) return;
+
+            currentRetopupWalletId = id;
+            document.getElementById('editSingleRetopupDate').value = wallet.retopupDate;
+            document.getElementById('editRetopupModal').classList.remove('hidden');
+        }
+
+        // Close edit retopup date modal
+        function closeRetopupModal() {
+            document.getElementById('editRetopupModal').classList.add('hidden');
+            currentRetopupWalletId = null;
+        }
+
+        // Save retopup date edit
+        function saveRetopupEdit() {
+            if (!currentRetopupWalletId) return;
+
+            const retopupDate = document.getElementById('editSingleRetopupDate').value;
+            if (!retopupDate) {
+                alert('Please select a retopup date!');
+                return;
+            }
+
+            walletsRef.child(currentRetopupWalletId).update({
+                retopupDate
+            }, (error) => {
+                if (error) {
+                    console.error('Error updating retopup date:', error);
+                    alert('Failed to update retopup date. Please check your Firebase database rules.');
+                } else {
+                    alert('Retopup date updated successfully!');
+                    closeRetopupModal();
+                }
+            });
+        }
+
+        // Delete a wallet
+        function deleteWallet(id) {
+            walletsRef.child(id).remove((error) => {
+                if (error) {
+                    console.error('Error deleting wallet:', error);
+                    alert('Failed to delete wallet. Please check your Firebase database rules.');
+                } else {
+                    alert('Wallet deleted successfully!');
+                }
+            });
+        }
+
+        // Update retopup date (sets to 15 days from now)
+        function updateRetopup(id) {
+            const today = new Date();
+            const newRetopup = new Date(today);
+            newRetopup.setDate(newRetopup.getDate() + 15);
+
+            walletsRef.child(id).update({
+                retopupDate: newRetopup.toISOString().split('T')[0]
+            }, (error) => {
+                if (error) {
+                    console.error('Error updating retopup date:', error);
+                    alert('Failed to update retopup date. Please check your Firebase database rules.');
+                } else {
+                    alert('Retopup date updated successfully!');
+                }
+            });
+        }
+
+        // Render wallets to the DOM
+        function renderWallets(filteredWallets = wallets, showSummary = false) {
+            const walletList = document.getElementById('walletList');
+            walletList.innerHTML = '';
+
+            // Handle summary display
+            const summaryDiv = document.getElementById('retopupSummary');
+            const totalWalletsSpan = document.getElementById('totalWallets');
+            const totalAmountSpan = document.getElementById('totalAmount');
+
+            if (showSummary) {
+                const today = new Date().toISOString().split('T')[0];
+                const todayWallets = filteredWallets.filter(wallet => wallet.retopupDate === today);
+                const totalWallets = todayWallets.length;
+                const totalAmount = todayWallets.reduce((sum, wallet) => sum + (wallet.amount || 0), 0).toFixed(2);
+
+                totalWalletsSpan.textContent = totalWallets;
+                totalAmountSpan.textContent = totalAmount;
+                summaryDiv.classList.remove('hidden');
+            } else {
+                summaryDiv.classList.add('hidden');
+            }
+
+            filteredWallets.forEach(wallet => {
+                const li = document.createElement('li');
+                li.className = 'flex flex-col md:flex-row items-center justify-between p-3 bg-gray-50 rounded-lg shadow';
+                li.innerHTML = `
+                    <div class="flex-1">
+                        <p><strong>Name:</strong> ${wallet.name}</p>
+                        <p><strong>Address:</strong> ${wallet.address}</p>
+                        <p><strong>Amount:</strong> $${wallet.amount.toFixed(2)}</p>
+                        <p><strong>Activation Date:</strong> ${wallet.activationDate}</p>
+                        <p><strong>Retopup Date:</strong> ${wallet.retopupDate}</p>
+                    </div>
+                    <div class="flex gap-2 mt-2 md:mt-0">
+                        <button onclick="openEditModal('${wallet.id}')" class="bg-blue-500 text-white px-3 py-1 rounded-lg hover:bg-blue-600">Edit</button>
+                        <button onclick="openRetopupModal('${wallet.id}')" class="bg-purple-500 text-white px-3 py-1 rounded-lg hover:bg-purple-600">Edit Retopup</button>
+                        <button onclick="updateRetopup('${wallet.id}')" class="bg-yellow-500 text-white px-3 py-1 rounded-lg hover:bg-yellow-600">Update Retopup</button>
+                        <button onclick="deleteWallet('${wallet.id}')" class="bg-red-500 text-white px-3 py-1 rounded-lg hover:bg-red-600">Delete</button>
+                    </div>
+                `;
+                walletList.appendChild(li);
+            });
+        }
+
+        // Search wallets by name or address
+        document.getElementById('searchInput').addEventListener('input', (e) => {
+            const searchTerm = e.target.value.toLowerCase();
+            const filteredWallets = wallets.filter(wallet =>
+                wallet.name.toLowerCase().includes(searchTerm) ||
+                wallet.address.toLowerCase().includes(searchTerm)
+            );
+            renderWallets(filteredWallets);
+        });
+
+        // Filter wallets by retopup date
+        document.getElementById('retopupFilter').addEventListener('change', (e) => {
+            const selectedDate = e.target.value;
+            const filteredWallets = wallets.filter(wallet => wallet.retopupDate === selectedDate);
+            renderWallets(filteredWallets);
+        });
+
+        // Filter wallets needing retopup today
+        function filterByRetopupToday() {
+            const today = new Date().toISOString().split('T')[0];
+            const filteredWallets = wallets.filter(wallet => wallet.retopupDate === today);
+            renderWallets(filteredWallets, true);
+            document.getElementById('retopupFilter').value = today;
+        }
+    </script>
+</body>
+</html>

@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Wallet Management - Login/Signup</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Firebase Compatibility SDK -->
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js"></script>
+</head>
+<body class="bg-gray-100 font-sans flex items-center justify-center min-h-screen">
+    <div class="container mx-auto p-4 max-w-md">
+        <h1 class="text-3xl font-bold text-center mb-6 text-gray-800">Wallet Management</h1>
+
+        <!-- Login Form -->
+        <div id="loginForm" class="bg-white p-6 rounded-lg shadow">
+            <h2 class="text-xl font-semibold mb-4">Login</h2>
+            <div class="grid grid-cols-1 gap-4">
+                <input type="email" id="loginEmail" placeholder="Email" class="p-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
+                <input type="password" id="loginPassword" placeholder="Password" class="p-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
+            </div>
+            <button onclick="login()" class="mt-4 bg-blue-500 text-white px-4 py-2 rounded-lg hover:bg-blue-600 w-full">Login</button>
+            <p class="mt-2 text-center">Don't have an account? <a href="#" onclick="showSignup()" class="text-blue-500 hover:underline">Sign Up</a></p>
+        </div>
+
+        <!-- Signup Form -->
+        <div id="signupForm" class="bg-white p-6 rounded-lg shadow hidden">
+            <h2 class="text-xl font-semibold mb-4">Sign Up</h2>
+            <div class="grid grid-cols-1 gap-4">
+                <input type="email" id="signupEmail" placeholder="Email" class="p-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
+                <input type="password" id="signupPassword" placeholder="Password" class="p-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
+            </div>
+            <button onclick="signup()" class="mt-4 bg-blue-500 text-white px-4 py-2 rounded-lg hover:bg-blue-600 w-full">Sign Up</button>
+            <p class="mt-2 text-center">Already have an account? <a href="#" onclick="showLogin()" class="text-blue-500 hover:underline">Login</a></p>
+        </div>
+    </div>
+
+    <script>
+        // Firebase Configuration
+        const firebaseConfig = {
+            apiKey: "AIzaSyCM-KaZAmaLc15SIdOREfH7qxJCYhctJSI",
+            authDomain: "saarthi-b3c5a.firebaseapp.com",
+            databaseURL: "https://saarthi-b3c5a-default-rtdb.firebaseio.com",
+            projectId: "saarthi-b3c5a",
+            storageBucket: "saarthi-b3c5a.firebasestorage.app",
+            messagingSenderId: "762666335555",
+            appId: "1:762666335555:web:4fb7684c6217f0e27e03f6"
+        };
+
+        // Initialize Firebase
+        try {
+            firebase.initializeApp(firebaseConfig);
+        } catch (error) {
+            console.error('Error initializing Firebase:', error);
+            alert('Failed to initialize Firebase. Please check your internet connection or Firebase configuration.');
+        }
+
+        // Show signup form
+        function showSignup() {
+            document.getElementById('loginForm').classList.add('hidden');
+            document.getElementById('signupForm').classList.remove('hidden');
+        }
+
+        // Show login form
+        function showLogin() {
+            document.getElementById('signupForm').classList.add('hidden');
+            document.getElementById('loginForm').classList.remove('hidden');
+        }
+
+        // Signup function
+        function signup() {
+            const email = document.getElementById('signupEmail').value.trim();
+            const password = document.getElementById('signupPassword').value.trim();
+
+            if (!email || !password) {
+                alert('Please fill in all fields!');
+                return;
+            }
+
+            firebase.auth().createUserWithEmailAndPassword(email, password)
+                .then(() => {
+                    alert('Sign up successful! Redirecting to dashboard...');
+                    window.location.href = 'dashboard.html';
+                })
+                .catch((error) => {
+                    console.error('Error during signup:', error);
+                    alert(`Signup failed: ${error.message}`);
+                });
+        }
+
+        // Login function
+        function login() {
+            const email = document.getElementById('loginEmail').value.trim();
+            const password = document.getElementById('loginPassword').value.trim();
+
+            if (!email || !password) {
+                alert('Please fill in all fields!');
+                return;
+            }
+
+            firebase.auth().signInWithEmailAndPassword(email, password)
+                .then(() => {
+                    alert('Login successful! Redirecting to dashboard...');
+                    window.location.href = 'dashboard.html';
+                })
+                .catch((error) => {
+                    console.error('Error during login:', error);
+                    alert(`Login failed: ${error.message}`);
+                });
+        }
+
+        // Redirect to dashboard if already authenticated
+        firebase.auth().onAuthStateChanged((user) => {
+            if (user) {
+                window.location.href = 'dashboard.html';
+            }
+        });
+    </script>
+</body>
+</html>
