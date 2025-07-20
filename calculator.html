@@ -1,0 +1,224 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Investment Calculator</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-50 font-sans antialiased">
+    <div class="max-w-3xl mx-auto p-6 sm:p-8">
+        <h1 class="text-4xl font-bold text-center text-gray-900 mb-8">Investment Calculator</h1>
+        <div class="bg-white p-6 sm:p-8 rounded-xl shadow-lg">
+            <div class="mb-6">
+                <label for="amount" class="block text-base font-medium text-gray-700 mb-2">Enter Amount in INR (₹):</label>
+                <input type="number" id="amount" placeholder="e.g., 50000" min="1" class="w-full p-4 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 transition text-base">
+            </div>
+            <div class="flex flex-col sm:flex-row sm:space-x-4">
+                <button onclick="calculate()" class="bg-indigo-600 text-white px-4 py-3 rounded-lg hover:bg-indigo-700 transition mb-2 sm:mb-0 text-base">Calculate</button>
+                <button onclick="downloadExcel()" style="display: none;" id="downloadBtn" class="bg-teal-600 text-white px-4 py-3 rounded-lg hover:bg-teal-700 transition text-base">Download Excel</button>
+            </div>
+            <div class="mt-4 hidden" id="toggleOptions">
+                <div class="flex flex-col sm:flex-row sm:space-x-6">
+                    <label class="flex items-center space-x-2 cursor-pointer">
+                        <input type="radio" name="idOption" value="lower" onclick="updateCalculations()" class="h-5 w-5 text-indigo-600 focus:ring-indigo-500">
+                        <span class="text-base text-gray-600">Lower Investment (₹<span id="lowerInr"></span>)</span>
+                    </label>
+                    <label class="flex items-center space-x-2 cursor-pointer">
+                        <input type="radio" name="idOption" value="higher" onclick="updateCalculations()" class="h-5 w-5 text-indigo-600 focus:ring-indigo-500">
+                        <span class="text-base text-gray-600">Higher Investment (₹<span id="higherInr"></span>)</span>
+                    </label>
+                </div>
+            </div>
+            <div class="mt-6 hidden bg-gray-50 p-6 rounded-lg" id="result">
+                <h3 class="text-xl font-semibold text-gray-900 mb-4">Calculation Results</h3>
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <p class="text-base text-gray-600"><strong>Amount in INR:</strong> <span id="inrAmount"></span></p>
+                    <p class="text-base text-gray-600"><strong>Amount in USD:</strong> <span id="usdAmount"></span></p>
+                    <p class="text-base text-gray-600"><strong>Total INR Invested (with Fees):</strong> <span id="totalInr"></span></p>
+                    <p class="text-base text-gray-600"><strong>Total USD Invested:</strong> <span id="totalUsd"></span></p>
+                </div>
+                <p class="text-base font-semibold text-gray-900 mt-6">Payment Schedule (195 Days, 13 Cycles):</p>
+                <div class="overflow-x-auto mt-2">
+                    <table class="w-full text-base text-gray-600 border border-gray-200">
+                        <thead>
+                            <tr class="bg-gray-100">
+                                <th class="border border-gray-200 p-4 text-left font-semibold">Cycle</th>
+                                <th class="border border-gray-200 p-4 text-left font-semibold">Day</th>
+                                <th class="border border-gray-200 p-4 text-left font-semibold">Amount Received (INR)</th>
+                            </tr>
+                        </thead>
+                        <tbody id="paymentBody"></tbody>
+                        <tfoot>
+                            <tr class="bg-gray-100">
+                                <th class="border border-gray-200 p-4 text-left font-semibold" colspan="2">Total Received</th>
+                                <td class="border border-gray-200 p-4" id="totalReceived"></td>
+                            </tr>
+                        </tfoot>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let lowerIds, higherIds, lowerInr, higherInr, selectedNumIds, inrInput;
+
+        function calculate() {
+            inrInput = parseFloat(document.getElementById('amount').value);
+            if (isNaN(inrInput) || inrInput <= 0) {
+                alert('Please enter a valid amount in INR.');
+                return;
+            }
+
+            // Step 1 & 2: Convert INR to USD (1 USD = 90 INR)
+            const usd = inrInput / 90;
+
+            // Step 3: Calculate number of IDs (1 ID = $70)
+            const idCost = 70;
+            lowerIds = Math.floor(usd / idCost);
+            higherIds = lowerIds + 1;
+
+            // Calculate transaction fee: ₹200 for first ₹50,000, additional ₹200 for every subsequent ₹50,000
+            const transactionFee = 200 * Math.ceil(inrInput / 50000);
+
+            // Calculate investment amounts including fees
+            lowerInr = lowerIds * idCost * 90 + transactionFee;
+            higherInr = higherIds * idCost * 90 + transactionFee;
+
+            // Show toggle options if input doesn't perfectly divide
+            const toggleGroup = document.getElementById('toggleOptions');
+            if (lowerIds * idCost * 90 !== inrInput && lowerIds > 0) {
+                toggleGroup.classList.remove('hidden');
+                document.getElementById('lowerInr').textContent = lowerInr.toFixed(2);
+                document.getElementById('higherInr').textContent = higherInr.toFixed(2);
+                document.querySelector('input[value="lower"]').checked = true;
+            } else {
+                toggleGroup.classList.add('hidden');
+            }
+
+            updateCalculations();
+        }
+
+        function updateCalculations() {
+            const selectedOption = document.querySelector('input[name="idOption"]:checked')?.value || 'lower';
+            selectedNumIds = selectedOption === 'lower' ? lowerIds : higherIds;
+            const baseInr = selectedNumIds * 70 * 90; // Investment without fees
+            const transactionFee = 200 * Math.ceil(inrInput / 50000); // Fee based on input
+            const totalInr = baseInr + transactionFee; // Total INR including fees
+            const totalUsd = baseInr / 90; // USD excludes fees
+
+            // Step 4: Calculate payments (every 15 days, $10.5 released, $9 received after 10% deduction)
+            const cycleDays = 15;
+            const totalCycles = 13; // 195 days / 15 days per cycle
+            const receivedPerId = 9; // After 10% deduction
+            const receivedPerIdInr = receivedPerId * 90; // Convert to INR
+            const totalReceivedInr = selectedNumIds * receivedPerIdInr * totalCycles;
+
+            // Display results
+            document.getElementById('inrAmount').textContent = `₹${inrInput.toFixed(2)}`;
+            document.getElementById('usdAmount').textContent = `$${(inrInput / 90).toFixed(2)}`;
+            document.getElementById('totalInr').textContent = `₹${totalInr.toFixed(2)}`;
+            document.getElementById('totalUsd').textContent = `$${totalUsd.toFixed(2)}`;
+
+            // Generate payment schedule
+            let paymentTable = '';
+            for (let i = 1; i <= totalCycles; i++) {
+                const day = i * cycleDays;
+                const amountReceived = selectedNumIds * receivedPerIdInr;
+                paymentTable += `
+                    <tr>
+                        <td class="border border-gray-200 p-4">${i}</td>
+                        <td class="border border-gray-200 p-4">${day}</td>
+                        <td class="border border-gray-200 p-4">₹${amountReceived.toFixed(2)}</td>
+                    </tr>
+                `;
+            }
+            document.getElementById('paymentBody').innerHTML = paymentTable;
+            document.getElementById('totalReceived').textContent = `₹${totalReceivedInr.toFixed(2)}`;
+
+            // Show result section and download button
+            document.getElementById('result').classList.remove('hidden');
+            document.getElementById('downloadBtn').style.display = 'inline-block';
+        }
+
+        function downloadExcel() {
+            try {
+                // Create workbook and worksheet
+                const wb = XLSX.utils.book_new();
+                const ws = XLSX.utils.json_to_sheet([]);
+
+                // Add title
+                XLSX.utils.sheet_add_aoa(ws, [['Investment Report']], { origin: 'A1' });
+                XLSX.utils.sheet_add_aoa(ws, [['Generated on 05:19 PM IST, July 20, 2025']], { origin: 'A2' });
+
+                // Add calculation results with formatting
+                const results = [
+                    { Calculation: 'Amount in INR', Value: parseFloat(inrInput).toFixed(2), Currency: '₹' },
+                    { Calculation: 'Amount in USD', Value: (inrInput / 90).toFixed(2), Currency: '$' },
+                    { Calculation: 'Total INR Invested (with Fees)', Value: parseFloat(document.getElementById('totalInr').textContent.replace('₹', '')).toFixed(2), Currency: '₹' },
+                    { Calculation: 'Total USD Invested', Value: parseFloat(document.getElementById('totalUsd').textContent.replace('$', '')).toFixed(2), Currency: '$' }
+                ];
+                XLSX.utils.sheet_add_json(ws, results.map(r => ({
+                    Calculation: r.Calculation,
+                    Value: `${r.Currency}${r.Value}`
+                })), { origin: 'A4', skipHeader: false });
+
+                // Add payment schedule
+                XLSX.utils.sheet_add_aoa(ws, [['Payment Schedule (195 Days, 13 Cycles)']], { origin: -1 });
+                const tableData = [];
+                const rows = document.getElementById('paymentBody').children;
+                for (let row of rows) {
+                    const cells = row.children;
+                    tableData.push({
+                        Cycle: parseInt(cells[0].textContent),
+                        Day: parseInt(cells[1].textContent),
+                        'Amount Received (INR)': parseFloat(cells[2].textContent.replace('₹', '')).toFixed(2)
+                    });
+                }
+                tableData.push({
+                    Cycle: 'Total Received',
+                    Day: '',
+                    'Amount Received (INR)': parseFloat(document.getElementById('totalReceived').textContent.replace('₹', '')).toFixed(2)
+                });
+                XLSX.utils.sheet_add_json(ws, tableData.map(row => ({
+                    Cycle: row.Cycle,
+                    Day: row.Day,
+                    'Amount Received (INR)': `₹${row['Amount Received (INR)']}`
+                })), { origin: -1, skipHeader: false });
+
+                // Apply formatting
+                ws['!cols'] = [
+                    { wch: 25 }, // Calculation / Cycle
+                    { wch: 20 }, // Value / Day
+                    { wch: 20 }  // Amount Received (INR)
+                ];
+                const range = XLSX.utils.decode_range(ws['!ref']);
+                for (let R = 0; R <= range.e.r; R++) {
+                    for (let C = 0; C <= range.e.c; C++) {
+                        const cell = ws[XLSX.utils.encode_cell({ r: R, c: C })];
+                        if (!cell) continue;
+                        cell.s = {
+                            font: { name: 'Arial', sz: 12 }, // Increased font size for Excel
+                            alignment: { vertical: 'center', horizontal: R < 4 || R === 5 ? 'left' : 'center' },
+                            border: { top: { style: 'thin' }, bottom: { style: 'thin' }, left: { style: 'thin' }, right: { style: 'thin' } }
+                        };
+                        if (R === 0 || R === 5 || (R === 3 || R === 6)) {
+                            cell.s.font.bold = true;
+                            cell.s.fill = { fgColor: { rgb: 'E5E7EB' } };
+                        }
+                    }
+                }
+
+                // Add to workbook and download
+                XLSX.utils.book_append_sheet(wb, ws, 'Investment Report');
+                XLSX.writeFile(wb, 'Investment_Report.xlsx');
+            } catch (error) {
+                console.error('Error generating Excel:', error);
+                alert('Failed to generate Excel file. Please try again.');
+            }
+        }
+    </script>
+</body>
+</html>
