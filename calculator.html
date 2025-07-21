@@ -12,6 +12,19 @@
         <h1 class="text-4xl font-bold text-center text-gray-900 mb-8">Investment Calculator</h1>
         <div class="bg-white p-6 sm:p-8 rounded-xl shadow-lg">
             <div class="mb-6">
+                <label class="block text-base font-medium text-gray-700 mb-2">Cycle Duration:</label>
+                <div class="flex flex-col sm:flex-row sm:space-x-6">
+                    <label class="flex items-center space-x-2 cursor-pointer">
+                        <input type="radio" name="cycleOption" value="15" onclick="updateCalculations()" class="h-5 w-5 text-indigo-600 focus:ring-indigo-500" checked>
+                        <span class="text-base text-gray-600">15-Day Cycles (13 Cycles)</span>
+                    </label>
+                    <label class="flex items-center space-x-2 cursor-pointer">
+                        <input type="radio" name="cycleOption" value="30" onclick="updateCalculations()" class="h-5 w-5 text-indigo-600 focus:ring-indigo-500">
+                        <span class="text-base text-gray-600">30-Day Cycles (7 Cycles)</span>
+                    </label>
+                </div>
+            </div>
+            <div class="mb-6">
                 <label for="amount" class="block text-base font-medium text-gray-700 mb-2">Enter Amount in INR (₹):</label>
                 <input type="number" id="amount" placeholder="e.g., 50000" min="1" class="w-full p-4 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 transition text-base">
             </div>
@@ -39,7 +52,7 @@
                     <p class="text-base text-gray-600"><strong>Total INR Invested (with Fees):</strong> <span id="totalInr"></span></p>
                     <p class="text-base text-gray-600"><strong>Total USD Invested:</strong> <span id="totalUsd"></span></p>
                 </div>
-                <p class="text-base font-semibold text-gray-900 mt-6">Payment Schedule (195 Days, 13 Cycles):</p>
+                <p class="text-base font-semibold text-gray-900 mt-6" id="scheduleTitle">Payment Schedule</p>
                 <div class="overflow-x-auto mt-2">
                     <table class="w-full text-base text-gray-600 border border-gray-200">
                         <thead>
@@ -104,17 +117,16 @@
         function updateCalculations() {
             const selectedOption = document.querySelector('input[name="idOption"]:checked')?.value || 'lower';
             selectedNumIds = selectedOption === 'lower' ? lowerIds : higherIds;
+            const cycleOption = document.querySelector('input[name="cycleOption"]:checked').value;
             const baseInr = selectedNumIds * 70 * 90; // Investment without fees
             const transactionFee = 200 * Math.ceil(inrInput / 50000); // Fee based on input
             const totalInr = baseInr + transactionFee; // Total INR including fees
             const totalUsd = baseInr / 90; // USD excludes fees
 
-            // Step 4: Calculate payments (every 15 days, $10.5 released, $9 received after 10% deduction)
-            const cycleDays = 15;
-            const totalCycles = 13; // 195 days / 15 days per cycle
-            const receivedPerId = 9; // After 10% deduction
-            const receivedPerIdInr = receivedPerId * 90; // Convert to INR
-            const totalReceivedInr = selectedNumIds * receivedPerIdInr * totalCycles;
+            // Step 4: Calculate payments ($10.5 released, $9 received after 10% deduction per 15-day cycle)
+            const receivedPerIdPer15Days = 9; // After 10% deduction per 15-day cycle
+            const receivedPerIdInrPer15Days = receivedPerIdPer15Days * 90; // Convert to INR
+            const totalReceivedInr = selectedNumIds * receivedPerIdInrPer15Days * 13; // Total for 13 equivalent 15-day cycles
 
             // Display results
             document.getElementById('inrAmount').textContent = `₹${inrInput.toFixed(2)}`;
@@ -124,17 +136,45 @@
 
             // Generate payment schedule
             let paymentTable = '';
-            for (let i = 1; i <= totalCycles; i++) {
-                const day = i * cycleDays;
-                const amountReceived = selectedNumIds * receivedPerIdInr;
-                paymentTable += `
-                    <tr>
-                        <td class="border border-gray-200 p-4">${i}</td>
-                        <td class="border border-gray-200 p-4">${day}</td>
-                        <td class="border border-gray-200 p-4">₹${amountReceived.toFixed(2)}</td>
-                    </tr>
-                `;
+            let currentDay = 0;
+            let totalCycles, cycleDays, scheduleText;
+
+            if (cycleOption === '15') {
+                // 15-day cycles: 13 cycles
+                totalCycles = 13;
+                cycleDays = 15;
+                scheduleText = 'Payment Schedule (195 Days, 13 Cycles)';
+                for (let i = 1; i <= totalCycles; i++) {
+                    currentDay += cycleDays;
+                    const amountReceived = selectedNumIds * receivedPerIdInrPer15Days;
+                    paymentTable += `
+                        <tr>
+                            <td class="border border-gray-200 p-4">${i}</td>
+                            <td class="border border-gray-200 p-4">${currentDay}</td>
+                            <td class="border border-gray-200 p-4">₹${amountReceived.toFixed(2)}</td>
+                        </tr>
+                    `;
+                }
+            } else {
+                // 30-day cycles: 6 cycles of 30 days + 1 cycle of 15 days
+                totalCycles = 7;
+                scheduleText = 'Payment Schedule (195 Days, 7 Cycles)';
+                for (let i = 1; i <= totalCycles; i++) {
+                    const cycleDays = i === totalCycles ? 15 : 30; // Last cycle is 15 days
+                    currentDay += cycleDays;
+                    const paymentMultiplier = i === totalCycles ? 1 : 2; // 30-day cycles combine two 15-day payments
+                    const amountReceived = selectedNumIds * receivedPerIdInrPer15Days * paymentMultiplier;
+                    paymentTable += `
+                        <tr>
+                            <td class="border border-gray-200 p-4">${i}</td>
+                            <td class="border border-gray-200 p-4">${currentDay}</td>
+                            <td class="border border-gray-200 p-4">₹${amountReceived.toFixed(2)}</td>
+                        </tr>
+                    `;
+                }
             }
+
+            document.getElementById('scheduleTitle').textContent = scheduleText;
             document.getElementById('paymentBody').innerHTML = paymentTable;
             document.getElementById('totalReceived').textContent = `₹${totalReceivedInr.toFixed(2)}`;
 
@@ -151,7 +191,7 @@
 
                 // Add title
                 XLSX.utils.sheet_add_aoa(ws, [['Investment Report']], { origin: 'A1' });
-                XLSX.utils.sheet_add_aoa(ws, [['Generated on 05:19 PM IST, July 20, 2025']], { origin: 'A2' });
+                XLSX.utils.sheet_add_aoa(ws, [['Generated on 12:56 PM IST, July 21, 2025']], { origin: 'A2' });
 
                 // Add calculation results with formatting
                 const results = [
@@ -166,7 +206,9 @@
                 })), { origin: 'A4', skipHeader: false });
 
                 // Add payment schedule
-                XLSX.utils.sheet_add_aoa(ws, [['Payment Schedule (195 Days, 13 Cycles)']], { origin: -1 });
+                const cycleOption = document.querySelector('input[name="cycleOption"]:checked').value;
+                const scheduleText = cycleOption === '15' ? 'Payment Schedule (195 Days, 13 Cycles)' : 'Payment Schedule (195 Days, 7 Cycles)';
+                XLSX.utils.sheet_add_aoa(ws, [[scheduleText]], { origin: -1 });
                 const tableData = [];
                 const rows = document.getElementById('paymentBody').children;
                 for (let row of rows) {
@@ -200,7 +242,7 @@
                         const cell = ws[XLSX.utils.encode_cell({ r: R, c: C })];
                         if (!cell) continue;
                         cell.s = {
-                            font: { name: 'Arial', sz: 12 }, // Increased font size for Excel
+                            font: { name: 'Arial', sz: 12 },
                             alignment: { vertical: 'center', horizontal: R < 4 || R === 5 ? 'left' : 'center' },
                             border: { top: { style: 'thin' }, bottom: { style: 'thin' }, left: { style: 'thin' }, right: { style: 'thin' } }
                         };
