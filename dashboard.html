@@ -3,87 +3,184 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Dashboard</title>
+    <title>Saarthi Dashboard</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <!-- Firebase Compatibility SDK -->
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js"></script>
+    <style>
+        @keyframes gradient {
+            0% { background-position: 0% 50%; }
+            50% { background-position: 100% 50%; }
+            100% { background-position: 0% 50%; }
+        }
+        .gradient-bg {
+            background: linear-gradient(-45deg, #3b82f6, #8b5cf6, #ec4899, #f59e0b);
+            background-size: 400% 400%;
+            animation: gradient 15s ease infinite;
+            position: relative;
+            min-height: 100vh;
+        }
+        .fade-in {
+            animation: fadeIn 1s ease-in-out;
+        }
+        @keyframes fadeIn {
+            0% { opacity: 0; transform: translateY(20px); }
+            100% { opacity: 1; transform: translateY(0); }
+        }
+        .money-effect {
+            position: absolute;
+            color: rgba(255, 255, 255, 0.1);
+            font-size: 1.5rem; /* Smaller on mobile */
+            font-weight: bold;
+            pointer-events: none;
+            animation: float 10s infinite ease-in-out;
+        }
+        @keyframes float {
+            0% { transform: translateY(100vh) rotate(0deg); opacity: 0.1; }
+            50% { opacity: 0.3; }
+            100% { transform: translateY(-100vh) rotate(360deg); opacity: 0; }
+        }
+        .loading-spinner {
+            border: 4px solid rgba(255, 255, 255, 0.3);
+            border-top: 4px solid #ffffff;
+            border-radius: 50%;
+            width: 32px; /* Smaller on mobile */
+            height: 32px;
+            animation: spin 1s linear infinite;
+            margin: 16px auto;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        .modal-enter {
+            animation: modalIn 0.3s ease-out;
+        }
+        @keyframes modalIn {
+            0% { opacity: 0; transform: scale(0.8); }
+            100% { opacity: 1; transform: scale(1); }
+        }
+        .list-item-enter {
+            animation: listItemIn 0.5s ease-out;
+        }
+        @keyframes listItemIn {
+            0% { opacity: 0; transform: translateX(-20px); }
+            100% { opacity: 1; transform: translateX(0); }
+        }
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar {
+            width: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 4px;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #8b5cf6;
+            border-radius: 4px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #ec4899;
+        }
+        /* Scrollable wallet list */
+        .wallet-list-container {
+            max-height: 50vh; /* Limit height on mobile */
+            overflow-y: auto;
+        }
+        @media (min-width: 768px) {
+            .wallet-list-container {
+                max-height: 70vh; /* Larger height on desktop */
+            }
+        }
+    </style>
 </head>
-<body class="bg-gray-100 font-sans">
-    <div class="container mx-auto p-4 max-w-4xl">
-        <div class="flex justify-between items-center mb-6">
-            <h1 class="text-3xl font-bold text-gray-800">Saarthi Dashboard</h1>
-            <div class="flex gap-2">
-                <button onclick="window.location.href='calculator.html'" class="bg-indigo-500 text-white px-4 py-2 rounded-lg hover:bg-indigo-600">Investment Calculator</button>
-                <button onclick="logout()" class="bg-red-500 text-white px-4 py-2 rounded-lg hover:bg-red-600">Logout</button>
+<body class="gradient-bg font-sans">
+    <!-- Money effect elements -->
+    <div class="money-effect" style="left: 10%; top: 0;">$</div>
+    <div class="money-effect" style="left: 30%; top: 0; animation-delay: 2s;">$</div>
+    <div class="money-effect" style="left: 50%; top: 0; animation-delay: 4s;">$</div>
+    <div class="money-effect" style="left: 70%; top: 0; animation-delay: 6s;">$</div>
+    <div class="money-effect" style="left: 90%; top: 0; animation-delay: 8s;">$</div>
+
+    <div id="loading" class="flex items-center justify-center min-h-screen">
+        <div class="loading-spinner"></div>
+    </div>
+
+    <div id="mainContent" class="container mx-auto p-4 sm:p-6 max-w-4xl hidden fade-in">
+        <div class="flex flex-col sm:flex-row justify-between items-center mb-6 sm:mb-8">
+            <h1 class="text-3xl sm:text-4xl font-extrabold text-white drop-shadow-lg mb-4 sm:mb-0">Saarthi Dashboard</h1>
+            <div class="flex gap-2 sm:gap-3">
+                <button onclick="window.location.href='calculator.html'" class="bg-indigo-600 text-white px-4 py-2 rounded-lg hover:bg-indigo-700 transition-all duration-200 transform hover:scale-105 hover:shadow-lg text-sm sm:text-base">Investment Calculator</button>
+                <button onclick="logout()" class="bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700 transition-all duration-200 transform hover:scale-105 hover:shadow-lg text-sm sm:text-base">Logout</button>
             </div>
         </div>
 
         <!-- Add Wallet Form -->
-        <div class="mb-6 bg-white p-4 rounded-lg shadow">
-            <h2 class="text-xl font-semibold mb-4">Add New Wallet</h2>
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <input type="text" id="walletName" placeholder="Wallet Name" class="p-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
-                <input type="text" id="walletAddress" placeholder="Wallet Address" class="p-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
-                <input type="number" id="walletAmount" placeholder="Amount" step="0.01" class="p-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
-                <input type="date" id="activationDate" class="p-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
+        <div class="mb-6 sm:mb-8 bg-white bg-opacity-90 p-4 sm:p-6 rounded-2xl shadow-2xl backdrop-blur-sm transition-all duration-300">
+            <h2 class="text-xl sm:text-2xl font-semibold mb-4 sm:mb-6 text-gray-800">Add New Wallet</h2>
+            <div class="grid grid-cols-1 gap-4 sm:grid-cols-2 sm:gap-5">
+                <input type="text" id="walletName" placeholder="Wallet Name" class="p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all duration-200 hover:border-blue-400 text-sm sm:text-base">
+                <input type="text" id="walletAddress" placeholder="Wallet Address" class="p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all duration-200 hover:border-blue-400 text-sm sm:text-base">
+                <input type="number" id="walletAmount" placeholder="Amount" step="0.01" class="p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all duration-200 hover:border-blue-400 text-sm sm:text-base">
+                <input type="date" id="activationDate" class="p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all duration-200 hover:border-blue-400 text-sm sm:text-base">
             </div>
-            <button onclick="addWallet()" class="mt-4 bg-blue-500 text-white px-4 py-2 rounded-lg hover:bg-blue-600">Add Wallet</button>
+            <button onclick="addWallet()" class="mt-4 sm:mt-6 bg-blue-600 text-white px-4 py-3 rounded-lg hover:bg-blue-700 w-full transition-all duration-200 transform hover:scale-105 hover:shadow-lg text-sm sm:text-base">Add Wallet</button>
         </div>
 
         <!-- Search and Filter -->
-        <div class="mb-6 bg-white p-4 rounded-lg shadow">
-            <h2 class="text-xl font-semibold mb-4">Search & Filter Wallets</h2>
-            <div class="flex flex-col md:flex-row gap-4">
-                <input type="text" id="searchInput" placeholder="Search by Name or Address" class="flex-1 p-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
-                <input type="date" id="retopupFilter" class="p-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
-                <button onclick="filterByRetopupToday()" class="bg-green-500 text-white px-4 py-2 rounded-lg hover:bg-green-600">Show Today's Retopup</button>
+        <div class="mb-6 sm:mb-8 bg-white bg-opacity-90 p-4 sm:p-6 rounded-2xl shadow-2xl backdrop-blur-sm transition-all duration-300">
+            <h2 class="text-xl sm:text-2xl font-semibold mb-4 sm:mb-6 text-gray-800">Search & Filter Wallets</h2>
+            <div class="flex flex-col gap-4 sm:flex-row sm:gap-4">
+                <input type="text" id="searchInput" placeholder="Search by Name or Address" class="flex-1 p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all duration-200 hover:border-blue-400 text-sm sm:text-base">
+                <input type="date" id="retopupFilter" class="p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all duration-200 hover:border-blue-400 text-sm sm:text-base">
+                <button onclick="filterByRetopupToday()" class="bg-green-600 text-white px-4 py-3 rounded-lg hover:bg-green-700 transition-all duration-200 transform hover:scale-105 hover:shadow-lg text-sm sm:text-base">Show Today's Retopup</button>
             </div>
         </div>
 
         <!-- Summary for Today's Retopup -->
-        <div id="retopupSummary" class="mb-6 bg-white p-4 rounded-lg shadow hidden">
-            <h2 class="text-xl font-semibold mb-2">Today's Retopup Summary</h2>
-            <p><strong>Total Wallets:</strong> <span id="totalWallets">0</span></p>
-            <p><strong>Total Amount:</strong> $<span id="totalAmount">0.00</span></p>
+        <div id="retopupSummary" class="mb-6 sm:mb-8 bg-white bg-opacity-90 p-4 sm:p-6 rounded-2xl shadow-2xl backdrop-blur-sm hidden transition-all duration-300">
+            <h2 class="text-xl sm:text-2xl font-semibold mb-4 text-gray-800">Today's Retopup Summary</h2>
+            <p class="text-gray-600 text-sm sm:text-base"><strong>Total Wallets:</strong> <span id="totalWallets">0</span></p>
+            <p class="text-gray-600 text-sm sm:text-base"><strong>Total Amount:</strong> $<span id="totalAmount">0.00</span></p>
         </div>
 
         <!-- Wallet List -->
-        <div class="bg-white p-4 rounded-lg shadow">
-            <h2 class="text-xl font-semibold mb-4">Wallet List</h2>
-            <ul id="walletList" class="space-y-2">
-                <!-- Wallets will be dynamically added here -->
-            </ul>
+        <div class="bg-white bg-opacity-90 p-4 sm:p-6 rounded-2xl shadow-2xl backdrop-blur-sm transition-all duration-300">
+            <h2 class="text-xl sm:text-2xl font-semibold mb-4 sm:mb-6 text-gray-800">Wallet List</h2>
+            <div class="wallet-list-container">
+                <ul id="walletList" class="space-y-3"></ul>
+            </div>
         </div>
     </div>
 
     <!-- Edit Wallet Modal -->
     <div id="editWalletModal" class="fixed inset-0 bg-gray-600 bg-opacity-50 hidden flex items-center justify-center">
-        <div class="bg-white p-6 rounded-lg shadow-lg w-full max-w-md">
-            <h2 class="text-xl font-semibold mb-4">Edit Wallet</h2>
-            <div class="grid grid-cols-1 gap-4">
-                <input type="text" id="editWalletName" placeholder="Wallet Name" class="p-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
-                <input type="text" id="editWalletAddress" placeholder="Wallet Address" class="p-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
-                <input type="number" id="editWalletAmount" placeholder="Amount" step="0.01" class="p-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
-                <input type="date" id="editActivationDate" class="p-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
-                <input type="date" id="editRetopupDate" class="p-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
+        <div class="bg-white bg-opacity-90 p-4 sm:p-8 rounded-2xl shadow-2xl backdrop-blur-sm w-full max-w-md modal-enter">
+            <h2 class="text-xl sm:text-2xl font-semibold mb-4 sm:mb-6 text-gray-800">Edit Wallet</h2>
+            <div class="grid grid-cols-1 gap-4 sm:gap-5">
+                <input type="text" id="editWalletName" placeholder="Wallet Name" class="p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all duration-200 hover:border-blue-400 text-sm sm:text-base">
+                <input type="text" id="editWalletAddress" placeholder="Wallet Address" class="p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all duration-200 hover:border-blue-400 text-sm sm:text-base">
+                <input type="number" id="editWalletAmount" placeholder="Amount" step="0.01" class="p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all duration-200 hover:border-blue-400 text-sm sm:text-base">
+                <input type="date" id="editActivationDate" class="p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all duration-200 hover:border-blue-400 text-sm sm:text-base">
+                <input type="date" id="editRetopupDate" class="p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all duration-200 hover:border-blue-400 text-sm sm:text-base">
             </div>
-            <div class="flex gap-2 mt-4">
-                <button onclick="saveWalletEdit()" class="bg-blue-500 text-white px-4 py-2 rounded-lg hover:bg-blue-600">Save</button>
-                <button onclick="closeEditModal()" class="bg-gray-500 text-white px-4 py-2 rounded-lg hover:bg-gray-600">Cancel</button>
+            <div class="flex gap-2 sm:gap-3 mt-4 sm:mt-6">
+                <button onclick="saveWalletEdit()" class="bg-blue-600 text-white px-4 py-3 rounded-lg hover:bg-blue-700 transition-all duration-200 transform hover:scale-105 hover:shadow-lg text-sm sm:text-base">Save</button>
+                <button onclick="closeEditModal()" class="bg-gray-600 text-white px-4 py-3 rounded-lg hover:bg-gray-700 transition-all duration-200 transform hover:scale-105 hover:shadow-lg text-sm sm:text-base">Cancel</button>
             </div>
         </div>
     </div>
 
     <!-- Edit Retopup Date Modal -->
     <div id="editRetopupModal" class="fixed inset-0 bg-gray-600 bg-opacity-50 hidden flex items-center justify-center">
-        <div class="bg-white p-6 rounded-lg shadow-lg w-full max-w-sm">
-            <h2 class="text-xl font-semibold mb-4">Edit Retopup Date</h2>
-            <input type="date" id="editSingleRetopupDate" class="p-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 w-full">
-            <div class="flex gap-2 mt-4">
-                <button onclick="saveRetopupEdit()" class="bg-blue-500 text-white px-4 py-2 rounded-lg hover:bg-blue-600">Save</button>
-                <button onclick="closeRetopupModal()" class="bg-gray-500 text-white px-4 py-2 rounded-lg hover:bg-gray-600">Cancel</button>
+        <div class="bg-white bg-opacity-90 p-4 sm:p-8 rounded-2xl shadow-2xl backdrop-blur-sm w-full max-w-sm modal-enter">
+            <h2 class="text-xl sm:text-2xl font-semibold mb-4 sm:mb-6 text-gray-800">Edit Retopup Date</h2>
+            <input type="date" id="editSingleRetopupDate" class="p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 w-full transition-all duration-200 hover:border-blue-400 text-sm sm:text-base">
+            <div class="flex gap-2 sm:gap-3 mt-4 sm:mt-6">
+                <button onclick="saveRetopupEdit()" class="bg-blue-600 text-white px-4 py-3 rounded-lg hover:bg-blue-700 transition-all duration-200 transform hover:scale-105 hover:shadow-lg text-sm sm:text-base">Save</button>
+                <button onclick="closeRetopupModal()" class="bg-gray-600 text-white px-4 py-3 rounded-lg hover:bg-gray-700 transition-all duration-200 transform hover:scale-105 hover:shadow-lg text-sm sm:text-base">Cancel</button>
             </div>
         </div>
     </div>
@@ -135,10 +232,16 @@
                         wallets.push({ id: key, ...data[key] });
                     });
                 }
-                renderWallets();
+                // Simulate delayed data load
+                setTimeout(() => {
+                    document.getElementById('loading').classList.add('hidden');
+                    document.getElementById('mainContent').classList.remove('hidden');
+                    renderWallets();
+                }, 1000); // 1-second delay for loading animation
             }, (error) => {
                 console.error('Error loading wallets:', error);
                 alert('Failed to load wallets. Please check your Firebase configuration and database rules.');
+                document.getElementById('loading').classList.add('hidden');
             });
             setTodayDate();
         }
@@ -349,22 +452,23 @@
                 summaryDiv.classList.add('hidden');
             }
 
-            filteredWallets.forEach(wallet => {
+            filteredWallets.forEach((wallet, index) => {
                 const li = document.createElement('li');
-                li.className = 'flex flex-col md:flex-row items-center justify-between p-3 bg-gray-50 rounded-lg shadow';
+                li.className = 'flex flex-col items-start p-4 bg-gray-50 bg-opacity-90 rounded-lg shadow-lg list-item-enter';
+                li.style.animationDelay = `${index * 0.1}s`;
                 li.innerHTML = `
                     <div class="flex-1">
-                        <p><strong>Name:</strong> ${wallet.name}</p>
-                        <p><strong>Address:</strong> ${wallet.address}</p>
-                        <p><strong>Amount:</strong> $${wallet.amount.toFixed(2)}</p>
-                        <p><strong>Activation Date:</strong> ${wallet.activationDate}</p>
-                        <p><strong>Retopup Date:</strong> ${wallet.retopupDate}</p>
+                        <p class="text-gray-800 text-sm sm:text-base"><strong>Name:</strong> ${wallet.name}</p>
+                        <p class="text-gray-600 text-sm sm:text-base"><strong>Address:</strong> ${wallet.address}</p>
+                        <p class="text-gray-600 text-sm sm:text-base"><strong>Amount:</strong> $${wallet.amount.toFixed(2)}</p>
+                        <p class="text-gray-600 text-sm sm:text-base"><strong>Activation Date:</strong> ${wallet.activationDate}</p>
+                        <p class="text-gray-600 text-sm sm:text-base"><strong>Retopup Date:</strong> ${wallet.retopupDate}</p>
                     </div>
-                    <div class="flex gap-2 mt-2 md:mt-0">
-                        <button onclick="openEditModal('${wallet.id}')" class="bg-blue-500 text-white px-3 py-1 rounded-lg hover:bg-blue-600">Edit</button>
-                        <button onclick="openRetopupModal('${wallet.id}')" class="bg-purple-500 text-white px-3 py-1 rounded-lg hover:bg-purple-600">Edit Retopup</button>
-                        <button onclick="updateRetopup('${wallet.id}')" class="bg-yellow-500 text-white px-3 py-1 rounded-lg hover:bg-yellow-600">Update Retopup</button>
-                        <button onclick="deleteWallet('${wallet.id}')" class="bg-red-500 text-white px-3 py-1 rounded-lg hover:bg-red-600">Delete</button>
+                    <div class="flex flex-wrap gap-2 mt-3">
+                        <button onclick="openEditModal('${wallet.id}')" class="bg-blue-500 text-white px-3 py-1 rounded-lg hover:bg-blue-600 transition-all duration-200 transform hover:scale-105 hover:shadow-lg text-sm sm:text-base">Edit</button>
+                        <button onclick="openRetopupModal('${wallet.id}')" class="bg-purple-500 text-white px-3 py-1 rounded-lg hover:bg-purple-600 transition-all duration-200 transform hover:scale-105 hover:shadow-lg text-sm sm:text-base">Edit Retopup</button>
+                        <button onclick="updateRetopup('${wallet.id}')" class="bg-yellow-500 text-white px-3 py-1 rounded-lg hover:bg-yellow-600 transition-all duration-200 transform hover:scale-105 hover:shadow-lg text-sm sm:text-base">Update Retopup</button>
+                        <button onclick="deleteWallet('${wallet.id}')" class="bg-red-500 text-white px-3 py-1 rounded-lg hover:bg-red-600 transition-all duration-200 transform hover:scale-105 hover:shadow-lg text-sm sm:text-base">Delete</button>
                     </div>
                 `;
                 walletList.appendChild(li);
