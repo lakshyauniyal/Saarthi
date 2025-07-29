@@ -47,13 +47,17 @@
                                 <th class="border border-gray-200 p-4 text-left font-semibold">Cycle</th>
                                 <th class="border border-gray-200 p-4 text-left font-semibold">Day</th>
                                 <th class="border border-gray-200 p-4 text-left font-semibold">Amount Received (INR)</th>
+                                <th class="border border-gray-200 p-4 text-left font-semibold">Principal Returned (INR)</th>
+                                <th class="border border-gray-200 p-4 text-left font-semibold">Interest Returned (INR)</th>
                             </tr>
                         </thead>
                         <tbody id="paymentBody"></tbody>
                         <tfoot>
                             <tr class="bg-gray-100">
-                                <th class="border border-gray-200 p-4 text-left font-semibold" colspan="2">Total Received</th>
+                                <th class="border border-gray-200 p-4 text-left font-semibold" colspan="2">Total</th>
                                 <td class="border border-gray-200 p-4" id="totalReceived"></td>
+                                <td class="border border-gray-200 p-4" id="totalPrincipal"></td>
+                                <td class="border border-gray-200 p-4" id="totalInterest"></td>
                             </tr>
                         </tfoot>
                     </table>
@@ -109,11 +113,17 @@
             const totalInr = baseInr + transactionFee; // Total INR including fees
             const totalUsd = baseInr / 90; // USD excludes fees
 
+            // Calculate principal return: principal (without fees) divided by 6.5
+            const principalPerId = (70 * 90) / 6.5; // Principal return per ID per full cycle
+            const principalPerIdHalf = principalPerId / 2; // Principal for 7th cycle (15 days)
+
             // Step 4: Calculate payments (6 cycles of 30 days, 1 cycle of 15 days, $10.5 released, $9 received after 10% deduction per 15-day cycle)
             const totalCycles = 7; // 6 cycles of 30 days + 1 cycle of 15 days
             const receivedPerIdPer15Days = 9; // After 10% deduction per 15-day cycle
             const receivedPerIdInrPer15Days = receivedPerIdPer15Days * 90; // Convert to INR
             const totalReceivedInr = selectedNumIds * receivedPerIdInrPer15Days * 13; // Total for 13 equivalent 15-day cycles
+            const totalPrincipalInr = selectedNumIds * (principalPerId * 6 + principalPerIdHalf); // Total principal: 6 full cycles + 1 half cycle
+            const totalInterestInr = totalReceivedInr - totalPrincipalInr; // Total interest
 
             // Display results
             document.getElementById('inrAmount').textContent = `₹${inrInput.toFixed(2)}`;
@@ -129,16 +139,22 @@
                 currentDay += cycleDays;
                 const paymentMultiplier = i === totalCycles ? 1 : 2; // 30-day cycles combine two 15-day payments
                 const amountReceived = selectedNumIds * receivedPerIdInrPer15Days * paymentMultiplier;
+                const principalReturned = selectedNumIds * (i === totalCycles ? principalPerIdHalf : principalPerId);
+                const interestReturned = amountReceived - principalReturned;
                 paymentTable += `
                     <tr>
                         <td class="border border-gray-200 p-4">${i}</td>
                         <td class="border border-gray-200 p-4">${currentDay}</td>
                         <td class="border border-gray-200 p-4">₹${amountReceived.toFixed(2)}</td>
+                        <td class="border border-gray-200 p-4">₹${principalReturned.toFixed(2)}</td>
+                        <td class="border border-gray-200 p-4">₹${interestReturned.toFixed(2)}</td>
                     </tr>
                 `;
             }
             document.getElementById('paymentBody').innerHTML = paymentTable;
             document.getElementById('totalReceived').textContent = `₹${totalReceivedInr.toFixed(2)}`;
+            document.getElementById('totalPrincipal').textContent = `₹${totalPrincipalInr.toFixed(2)}`;
+            document.getElementById('totalInterest').textContent = `₹${totalInterestInr.toFixed(2)}`;
 
             // Show result section and download button
             document.getElementById('result').classList.remove('hidden');
@@ -153,7 +169,7 @@
 
                 // Add title
                 XLSX.utils.sheet_add_aoa(ws, [['Investment Report']], { origin: 'A1' });
-                XLSX.utils.sheet_add_aoa(ws, [['Generated on 12:47 PM IST, July 21, 2025']], { origin: 'A2' });
+                XLSX.utils.sheet_add_aoa(ws, [['Generated on 11:32 PM IST, July 29, 2025']], { origin: 'A2' });
 
                 // Add calculation results with formatting
                 const results = [
@@ -176,25 +192,33 @@
                     tableData.push({
                         Cycle: parseInt(cells[0].textContent),
                         Day: parseInt(cells[1].textContent),
-                        'Amount Received (INR)': parseFloat(cells[2].textContent.replace('₹', '')).toFixed(2)
+                        'Amount Received (INR)': parseFloat(cells[2].textContent.replace('₹', '')).toFixed(2),
+                        'Principal Returned (INR)': parseFloat(cells[3].textContent.replace('₹', '')).toFixed(2),
+                        'Interest Returned (INR)': parseFloat(cells[4].textContent.replace('₹', '')).toFixed(2)
                     });
                 }
                 tableData.push({
-                    Cycle: 'Total Received',
+                    Cycle: 'Total',
                     Day: '',
-                    'Amount Received (INR)': parseFloat(document.getElementById('totalReceived').textContent.replace('₹', '')).toFixed(2)
+                    'Amount Received (INR)': parseFloat(document.getElementById('totalReceived').textContent.replace('₹', '')).toFixed(2),
+                    'Principal Returned (INR)': parseFloat(document.getElementById('totalPrincipal').textContent.replace('₹', '')).toFixed(2),
+                    'Interest Returned (INR)': parseFloat(document.getElementById('totalInterest').textContent.replace('₹', '')).toFixed(2)
                 });
                 XLSX.utils.sheet_add_json(ws, tableData.map(row => ({
                     Cycle: row.Cycle,
                     Day: row.Day,
-                    'Amount Received (INR)': `₹${row['Amount Received (INR)']}`
+                    'Amount Received (INR)': `₹${row['Amount Received (INR)']}`,
+                    'Principal Returned (INR)': `₹${row['Principal Returned (INR)']}`,
+                    'Interest Returned (INR)': `₹${row['Interest Returned (INR)']}`
                 })), { origin: -1, skipHeader: false });
 
                 // Apply formatting
                 ws['!cols'] = [
-                    { wch: 25 }, // Calculation / Cycle
-                    { wch: 20 }, // Value / Day
-                    { wch: 20 }  // Amount Received (INR)
+                    { wch: 25 }, // Cycle
+                    { wch: 20 }, // Day
+                    { wch: 20 }, // Amount Received (INR)
+                    { wch: 20 }, // Principal Returned (INR)
+                    { wch: 20 }  // Interest Returned (INR)
                 ];
                 const range = XLSX.utils.decode_range(ws['!ref']);
                 for (let R = 0; R <= range.e.r; R++) {
